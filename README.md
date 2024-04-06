@@ -33,4 +33,4 @@ The project is released under the GNU AGPLv3 license.
 
 Some key points:
 - Any changes made to the source code must be disclosed with the same (or any GPL compatible) license as the original project.
-- Users using the software over the network (e.g. interacting with the bot on Discord) have the right to obtain a copy of the source code.
+- Users using the software over the network (e.g. interacting with the bot on Discord) have the right to receive a copy of the source code.
