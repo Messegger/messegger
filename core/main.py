@@ -67,11 +67,7 @@ async def on_shard_ready(shard_id):
 async def on_guild_join(guild):
     try:
         await db.simple_insert("guilds", guild_id=guild.id, **guild_data_defaults())
-        guild_data[guild.id] ={
-            "log_channel_id": None,
-            "persistent_messages": False,
-            "premium_level": 0,
-        }
+        guild_data[guild.id] = guild_data_defaults()
     except:
         fetch_data = await db.fetch("SELECT * FROM guilds WHERE guild_id = $1", guild.id)
         fetch_data = fetch_data[0]
