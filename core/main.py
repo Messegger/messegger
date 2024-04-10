@@ -90,10 +90,11 @@ async def on_message(message):
             "message_id": message.id,
             "channel_id": message.channel.id,
             "guild_id": message.guild.id,
-            "author_id": message.author.id,
             "action": "create",
             "timestamp": datetime.datetime.now(tz=datetime.UTC),
+            "is_webhook": (True if message.webhook_id else False),
         }
+        msg_data["author_id"] = message.webhook_id or message.author.id
         if message.content:
             msg_data["content"] = message.content
         #if message.embeds:
@@ -108,10 +109,14 @@ async def on_raw_message_edit(payload):
             "message_id": payload.message_id,
             "channel_id": payload.channel_id,
             "guild_id": payload.guild_id,
-            "author_id": int(payload.data["author"]["id"]),
             "action": "edit",
             "timestamp": datetime.datetime.now(tz=datetime.UTC),
+            "is_webhook": (True if "wehbook_id" in payload.data.keys() else False),
         }
+        if "webhook_id" in payload.data["author"].keys():
+            msg_data["author_id"] = int(payload.data["author"]["webhook_id"])
+        else:
+            msg_data["author_id"] = int(payload.data["author"]["id"])
         if payload.data["content"]:
             msg_data["content"] = payload.data["content"]
         #if payload.data["embeds"]:
@@ -138,6 +143,8 @@ async def on_raw_message_edit(payload):
                 if len(fetch_data) == 0:
                     return
                 fetch_data = fetch_data[0]
+                if "content" not in payload.data.keys() or payload.data["content"] == fetch_data[1]:
+                    return
                 embed = discord.Embed(
                     description=f"# Before\n{fetch_data[1]}\n# After\n{payload.data['content']}",
                     color=MAIN_COLOR,
@@ -145,7 +152,7 @@ async def on_raw_message_edit(payload):
                 )
                 embed.set_author(
                     name=payload.data["author"]["username"],
-                    icon_url=f"https://cdn.discordapp.com/avatars/{payload.data['author']['id']}/{payload.data['author']['avatar_hash']}.{'gif' if payload.data['author']['avatar_hash'].startswith('a_') else 'png'}"
+                    icon_url=f"https://cdn.discordapp.com/avatars/{payload.data['author']['id']}/{payload.data['author']['avatar']}.{'gif' if payload.data['author']['avatar'].startswith('a_') else 'png'}"
                 )
             embed.set_footer(text="Message edited")
             await log_channel.send(embed=embed)
@@ -213,13 +220,33 @@ async def on_raw_message_delete(payload):
                 if isinstance(user, discord.User):
                     embed.set_author(
                         name=user.name,
-                        icon_url=user.display_avatar.url # type: ignore
+                        icon_url=user.display_avatar.url
                     )
             embed.set_footer(text="Message deleted")
             await log_channel.send(embed=embed)
         else:
             guild_data[payload.guild_id]["log_channel_id"] = None
             await db.simple_update("guilds", f"guild_id = {payload.guild_id}", log_channel_id=None)
+
+
+@client.tree.command(description="Get help.")
+async def help(interaction: discord.Interaction):
+    embed = discord.Embed(
+        title="Messegger Help [WIP]",
+        description="Discord bot that tries to provide the leading message logging and moderation features.",
+        color=MAIN_COLOR,
+    )
+    embed.add_field(
+        name="Commands",
+        value="`/logchannel`: Set the channel where logs will be sent.\n\n`/persistentmessages`: Store a copy of new, edited, and deleted messages. Improves logging effectiveness.",
+        inline=False
+    )
+    embed.add_field(
+        name="Links",
+        value="Join the [support server](https://discord.gg/rWVHU3qjvK) for help and updates.\n\nMore information about the bot [here](https://github.com/Messegger/messegger).",
+        inline=False
+    )
+    await interaction.response.send_message(embed=embed, ephemeral=True)
 
 
 @client.tree.command(description="Set the channel where logs will be sent.")
@@ -230,7 +257,7 @@ async def logchannel(interaction: discord.Interaction, channel: discord.TextChan
     await interaction.response.send_message(f"Log channel set to {channel.mention}", ephemeral=True)
 
 
-@client.tree.command(description="Store new, edited, and deleted messages in the database. Improves logging effectiveness.")
+@client.tree.command(description="Store a copy of new, edited, and deleted messages. Improves logging effectiveness.")
 @app_commands.checks.has_permissions(manage_guild=True)
 async def persistentmessages(interaction: discord.Interaction, state: Literal["enable", "disable"]):
     state_bool = {

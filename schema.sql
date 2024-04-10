@@ -7,7 +7,8 @@ CREATE TABLE IF NOT EXISTS messages (
     embeds JSONB[],
     attachments VARCHAR(255)[],
     action VARCHAR(10),
-    timestamp TIMESTAMPTZ
+    timestamp TIMESTAMPTZ,
+    is_webhook BOOLEAN
 );
 CREATE TABLE IF NOT EXISTS guilds (
     guild_id BIGINT,
@@ -23,7 +24,7 @@ CREATE INDEX IF NOT EXISTS guild_ids_index ON guilds USING btree (guild_id);
 CREATE OR REPLACE FUNCTION delete_related_messages()
 RETURNS TRIGGER AS $$
 BEGIN
-    DELETE FROM messages WHERE message_id = OLD.message_id;
+    DELETE FROM messages WHERE message_id = OLD.message_id AND channel_id = OLD.channel_id;
     RETURN OLD;
 END;
 $$ LANGUAGE plpgsql;
