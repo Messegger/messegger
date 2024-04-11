@@ -90,11 +90,11 @@ async def on_message(message):
             "message_id": message.id,
             "channel_id": message.channel.id,
             "guild_id": message.guild.id,
+            "author_id": message.webhook_id or message.author.id,
             "action": "create",
             "timestamp": datetime.datetime.now(tz=datetime.UTC),
             "is_webhook": (True if message.webhook_id else False),
         }
-        msg_data["author_id"] = message.webhook_id or message.author.id
         if message.content:
             msg_data["content"] = message.content
         #if message.embeds:
@@ -237,13 +237,8 @@ async def help(interaction: discord.Interaction):
         color=MAIN_COLOR,
     )
     embed.add_field(
-        name="Commands",
-        value="`/logchannel`: Set the channel where logs will be sent.\n\n`/persistentmessages`: Store a copy of new, edited, and deleted messages. Improves logging effectiveness.",
-        inline=False
-    )
-    embed.add_field(
         name="Links",
-        value="Join the [support server](https://discord.gg/rWVHU3qjvK) for help and updates.\n\nMore information about the bot [here](https://github.com/Messegger/messegger).",
+        value=f"Join the [support server](https://discord.gg/rWVHU3qjvK) for help and updates.\n\nMore information about the bot [here](https://github.com/Messegger/messegger).\n\n[Add me to your server](https://discord.com/oauth2/authorize?client_id={client.user.id}&permissions=0&scope=bot)", # type: ignore
         inline=False
     )
     await interaction.response.send_message(embed=embed, ephemeral=True)
