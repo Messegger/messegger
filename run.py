@@ -15,6 +15,6 @@ async def main():
 
 if __name__ == "__main__":
     loop = asyncio.get_event_loop()
-    loop.add_signal_handler(signal.SIGINT, loop.create_task, signal_handler())
-    loop.add_signal_handler(signal.SIGTERM, loop.create_task, signal_handler())
+    loop.add_signal_handler(signal.SIGINT, lambda: loop.create_task(signal_handler()))
+    loop.add_signal_handler(signal.SIGTERM, lambda: loop.create_task(signal_handler()))
     loop.run_until_complete(main())
