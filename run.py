@@ -4,9 +4,10 @@ from core.main import client
 from core.postgres import db, init_db
 
 async def signal_handler():
-    await client.close()
+    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
+    await asyncio.gather(*tasks, return_exceptions=True)
     await db.disconnect()
-    await asyncio.gather()
+    await client.close()
 
 async def main():
     await init_db()
