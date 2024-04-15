@@ -4,8 +4,6 @@ from core.main import client
 from core.postgres import db, init_db
 
 async def signal_handler():
-    tasks = [t for t in asyncio.all_tasks() if t is not asyncio.current_task()]
-    await asyncio.gather(*tasks, return_exceptions=True)
     await db.disconnect()
     await client.close()
 

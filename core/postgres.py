@@ -46,8 +46,5 @@ async def _delete_old_messages():
 async def init_db():
     await db.connect(config["postgresql"])
     with open("schema.sql", "r") as file:
-        try:
-            await db.execute(file.read())
-        except asyncpg.exceptions.DuplicateObjectError:
-            pass
+        await db.execute(file.read())
     asyncio.create_task(_delete_old_messages())
