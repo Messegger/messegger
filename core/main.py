@@ -1,5 +1,7 @@
 import discord
 import datetime
+import json
+import asyncio
 from discord import app_commands
 from typing import Literal
 from core.postgres import db
@@ -38,6 +40,115 @@ class Messegger(discord.AutoShardedClient):
     async def setup_hook(self):
         await self.tree.sync(guild=MY_GUILD)
         await self.tree.sync()
+
+
+async def _store_message(msg_payload: discord.Message | discord.RawMessageUpdateEvent | discord.RawMessageDeleteEvent, action: str):
+    msg_data = {
+        "action": action,
+        "timestamp": datetime.datetime.now(tz=datetime.UTC),
+    }
+
+    # TODO: find a better way to do this...
+
+    if isinstance(msg_payload, discord.Message):
+        msg_data["message_id"] = msg_payload.id
+        msg_data["channel_id"] = msg_payload.channel.id
+        msg_data["guild_id"] = msg_payload.guild.id # type: ignore
+        msg_data["author_id"] = msg_payload.webhook_id or msg_payload.author.id
+        msg_data["is_webhook"] = (True if msg_payload.webhook_id else False)
+        if msg_payload.content:
+            msg_data["content"] = msg_payload.content
+        if len(msg_payload.attachments) > 0:
+            msg_data["attachments"] = [f"{msg_payload.channel.id}/{attachment.id}/{attachment.filename}" for attachment in msg_payload.attachments]
+    elif isinstance(msg_payload, (discord.RawMessageUpdateEvent, discord.RawMessageDeleteEvent)):
+        msg_data["message_id"] = msg_payload.message_id
+        msg_data["channel_id"] = msg_payload.channel_id
+        msg_data["guild_id"] = msg_payload.guild_id
+        if isinstance(msg_payload, discord.RawMessageUpdateEvent):
+            if "author" in msg_payload.data:
+                if "webhook_id" in msg_payload.data:
+                    msg_data["author_id"] = int(msg_payload.data["webhook_id"])
+                    msg_data["is_webhook"] = True
+                else:
+                    msg_data["author_id"] = int(msg_payload.data["author"]["id"])
+                    msg_data["is_webhook"] = False
+            if "content" in msg_payload.data:
+                msg_data["content"] = msg_payload.data["content"]
+            if len(msg_payload.data["attachments"]) > 0:
+                msg_data["attachments"] = [f"{msg_payload.data['channel_id']}/{attachment['id']}/{attachment['filename']}" for attachment in msg_payload.data["attachments"]]
+        elif isinstance(msg_payload, discord.RawMessageDeleteEvent):
+            fetch_data = await db.fetch("SELECT author_id, content, attachments, embeds, is_webhook FROM messages WHERE message_id = $1 AND channel_id = $2 ORDER BY message_id DESC LIMIT 1", msg_payload.message_id, msg_payload.channel_id)
+            if len(fetch_data) == 0:
+                return
+            fetch_data = fetch_data[0]
+            msg_data["author_id"] = fetch_data[0]
+            msg_data["content"] = fetch_data[1]
+            if fetch_data[2]:
+                msg_data["attachments"] = fetch_data[2]
+            msg_data["is_webhook"] = fetch_data[4]
+
+    await db.simple_insert("messages", **msg_data)
+
+async def _log_message_fetch(msg_payload: discord.RawMessageUpdateEvent | discord.RawMessageDeleteEvent):
+    return await db.fetch("SELECT author_id, content, attachments, is_webhook FROM messages WHERE message_id = $1 AND channel_id = $2 ORDER BY message_id DESC LIMIT 1", msg_payload.message_id, msg_payload.channel_id)
+
+async def _log_message(msg_payload: discord.RawMessageUpdateEvent | discord.RawMessageDeleteEvent, log_channel_id: int):
+    log_channel = client.get_channel(log_channel_id)
+    if not log_channel:
+        guild_data[msg_payload.guild_id]["log_channel_id"] = None
+        await db.simple_update("guilds", f"guild_id = {msg_payload.guild_id}", log_channel_id=None)
+        return
+
+    timestamp = datetime.datetime.now(tz=datetime.UTC)
+    fetch_data = None
+
+    # TODO: find a better way to do this...
+
+    if msg_payload.cached_message:
+        msg_content = msg_payload.cached_message.content
+        msg_author = msg_payload.cached_message.author
+        msg_attachments = [f"[{attachment.filename}]({attachment.url})" for attachment in msg_payload.cached_message.attachments] if len(msg_payload.cached_message.attachments) > 0 else None
+    elif guild_data[msg_payload.guild_id]["persistent_messages"]:
+        if not fetch_data:
+            fetch_data = await _log_message_fetch(msg_payload)
+            if len(fetch_data) == 0:
+                return
+            fetch_data = fetch_data[0]
+        msg_content = fetch_data[1]
+        msg_author = client.get_user(fetch_data[0]) if not fetch_data[3] else "Webhook"
+        msg_attachments = [f"[{url.split('/')[-1]}](https://cdn.discordapp.com/attachments/{url})" for url in fetch_data[2]] if fetch_data[2] else None
+    else:
+        return
+
+    embed = discord.Embed(
+        title="Message Edited" if isinstance(msg_payload, discord.RawMessageUpdateEvent) else "Message Deleted",
+        description=msg_content if isinstance(msg_payload, discord.RawMessageDeleteEvent) else None,
+        color=0xFFFF00 if isinstance(msg_payload, discord.RawMessageUpdateEvent) else 0xFF0000,
+        timestamp=timestamp,
+    )
+    embed.set_author(
+        name=str(msg_author),
+        icon_url=msg_author.display_avatar.url, # type: ignore
+    )
+    if isinstance(msg_payload, discord.RawMessageUpdateEvent):
+        embed.add_field(
+            name="Before",
+            value=msg_content,
+            inline=False,
+        )
+        embed.add_field(
+            name="After",
+            value=msg_payload.data["content"],
+            inline=False,
+        )
+    if msg_attachments:
+        embed.add_field(
+            name="Attachments",
+            value="\n".join(msg_attachments),
+            inline=False,
+        )
+
+    await log_channel.send(embed=embed) # type: ignore
 
 
 client = Messegger(config)
@@ -86,147 +197,40 @@ async def on_guild_remove(guild):
 @client.event
 async def on_message(message):
     if guild_data[message.guild.id]["persistent_messages"]:
-        msg_data = {
-            "message_id": message.id,
-            "channel_id": message.channel.id,
-            "guild_id": message.guild.id,
-            "author_id": message.webhook_id or message.author.id,
-            "action": "create",
-            "timestamp": datetime.datetime.now(tz=datetime.UTC),
-            "is_webhook": (True if message.webhook_id else False),
-        }
-        if message.content:
-            msg_data["content"] = message.content
-        #if message.embeds:
-        #    msg_data["embeds"] = [embed.to_dict() for embed in message.embeds]
-        await db.simple_insert("messages", **msg_data)
+        try:
+            await _store_message(message, "create")
+        except:
+            pass
 
 
 @client.event
 async def on_raw_message_edit(payload):
-    if guild_data[payload.guild_id]["persistent_messages"]:
-        msg_data = {
-            "message_id": payload.message_id,
-            "channel_id": payload.channel_id,
-            "guild_id": payload.guild_id,
-            "action": "edit",
-            "timestamp": datetime.datetime.now(tz=datetime.UTC),
-            "is_webhook": (True if "wehbook_id" in payload.data.keys() else False),
-        }
-        if "webhook_id" in payload.data["author"].keys():
-            msg_data["author_id"] = int(payload.data["author"]["webhook_id"])
-        else:
-            msg_data["author_id"] = int(payload.data["author"]["id"])
-        if payload.data["content"]:
-            msg_data["content"] = payload.data["content"]
-        #if payload.data["embeds"]:
-        #    msg_data["embeds"] = payload.data["embeds"]
-        await db.simple_insert("messages", **msg_data)
-
     if guild_data[payload.guild_id]["log_channel_id"]:
-        log_channel = client.get_channel(guild_data[payload.guild_id]["log_channel_id"])
-        if log_channel and isinstance(log_channel, discord.TextChannel):
-            if payload.cached_message:
-                embed = discord.Embed(
-                    description=f"# Before\n{payload.cached_message.content}\n# After\n{payload.data['content']}",
-                    color=MAIN_COLOR,
-                    timestamp=datetime.datetime.now(tz=datetime.UTC)
-                )
-                embed.set_author(
-                    name=payload.cached_message.author,
-                    icon_url=payload.cached_message.author.display_avatar.url
-                )
-            else:
-                if not guild_data[payload.guild_id]["persistent_messages"]:
-                    return
-                fetch_data = await db.fetch("SELECT author_id, content FROM messages WHERE message_id = $1 AND channel_id = $2 ORDER BY message_id DESC LIMIT 1", payload.message_id, payload.channel_id)
-                if len(fetch_data) == 0:
-                    return
-                fetch_data = fetch_data[0]
-                if "content" not in payload.data.keys() or payload.data["content"] == fetch_data[1]:
-                    return
-                embed = discord.Embed(
-                    description=f"# Before\n{fetch_data[1]}\n# After\n{payload.data['content']}",
-                    color=MAIN_COLOR,
-                    timestamp=datetime.datetime.now(tz=datetime.UTC)
-                )
-                embed.set_author(
-                    name=payload.data["author"]["username"],
-                    icon_url=f"https://cdn.discordapp.com/avatars/{payload.data['author']['id']}/{payload.data['author']['avatar']}.{'gif' if payload.data['author']['avatar'].startswith('a_') else 'png'}"
-                )
-            embed.set_footer(text="Message edited")
-            await log_channel.send(embed=embed)
-        else:
+        try:
+            await _log_message(payload, guild_data[payload.guild_id]["log_channel_id"])
+        except:
             guild_data[payload.guild_id]["log_channel_id"] = None
             await db.simple_update("guilds", f"guild_id = {payload.guild_id}", log_channel_id=None)
+    if guild_data[payload.guild_id]["persistent_messages"]:
+        try:
+            await _store_message(payload, "edit")
+        except:
+            pass
 
 
 @client.event
 async def on_raw_message_delete(payload):
-    if guild_data[payload.guild_id]["persistent_messages"]:
-        msg_data = {
-            "message_id": payload.message_id,
-            "channel_id": payload.channel_id,
-            "guild_id": payload.guild_id,
-            "action": "delete",
-            "timestamp": datetime.datetime.now(tz=datetime.UTC),
-        }
-        if payload.cached_message:
-            msg_data["author_id"] = payload.cached_message.author.id
-            if payload.cached_message.content:
-                msg_data["content"] = payload.cached_message.content
-            #if payload.cached_message.embeds:
-            #    msg_data["embeds"] = payload.cached_message.embeds
-        else:
-            fetch_data = await db.fetch("SELECT author_id, content FROM messages WHERE message_id = $1 AND channel_id = $2 ORDER BY message_id DESC LIMIT 1", payload.message_id, payload.channel_id)
-            if len(fetch_data) == 0:
-                    return
-            fetch_data = fetch_data[0]
-            msg_data["author_id"] = fetch_data[0]
-            if fetch_data[1]:
-                msg_data["content"] = fetch_data[1]
-            #if fetch_data[2]:
-            #    msg_data["embeds"] = fetch_data[2]
-        await db.simple_insert("messages", **msg_data)
-
     if guild_data[payload.guild_id]["log_channel_id"]:
-        log_channel = client.get_channel(guild_data[payload.guild_id]["log_channel_id"])
-        if log_channel and isinstance(log_channel, discord.TextChannel):
-            if payload.cached_message:
-                embed = discord.Embed(
-                    description=payload.cached_message.content,
-                    color=MAIN_COLOR,
-                    timestamp=datetime.datetime.now(tz=datetime.UTC)
-                )
-                embed.set_author(
-                    name=payload.cached_message.author,
-                    icon_url=payload.cached_message.author.display_avatar.url
-                )
-            else:
-                if not guild_data[payload.guild_id]["persistent_messages"]:
-                    return
-                fetch_data = await db.fetch("SELECT author_id, content FROM messages WHERE message_id = $1 AND channel_id = $2 ORDER BY message_id DESC LIMIT 1", payload.message_id, payload.channel_id)
-                if len(fetch_data) == 0:
-                    return
-                fetch_data = fetch_data[0]
-                embed = discord.Embed(
-                    description=fetch_data[1],
-                    color=MAIN_COLOR,
-                    timestamp=datetime.datetime.now(tz=datetime.UTC)
-                )
-                user = client.get_user(fetch_data[0])
-                if not user:
-                    user = await client.fetch_user(fetch_data[0])
-                if isinstance(user, discord.User):
-                    embed.set_author(
-                        name=user.name,
-                        icon_url=user.display_avatar.url
-                    )
-            embed.set_footer(text="Message deleted")
-            await log_channel.send(embed=embed)
-        else:
+        try:
+            await _log_message(payload, guild_data[payload.guild_id]["log_channel_id"])
+        except:
             guild_data[payload.guild_id]["log_channel_id"] = None
             await db.simple_update("guilds", f"guild_id = {payload.guild_id}", log_channel_id=None)
+    if guild_data[payload.guild_id]["persistent_messages"]:
+        try:
+            await _store_message(payload, "delete")
+        except:
+            pass
 
 
 @client.tree.command(description="Get help.")
