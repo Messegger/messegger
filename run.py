@@ -4,8 +4,8 @@ from core.main import client
 from core.postgres import db, init_db
 
 async def signal_handler():
-    await db.disconnect()
     await client.close()
+    await db.disconnect()
 
 async def main():
     await init_db()
