@@ -1,7 +1,5 @@
 import discord
 import datetime
-import json
-import asyncio
 from discord import app_commands
 from typing import Literal
 from core.postgres import db
