@@ -1,7 +1,6 @@
 CREATE TABLE IF NOT EXISTS messages (
     message_id BIGINT,
     channel_id BIGINT,
-    guild_id BIGINT,
     author_id BIGINT,
     content TEXT,
     embeds JSONB[],
@@ -15,6 +14,7 @@ CREATE TABLE IF NOT EXISTS guilds (
     log_channel_id BIGINT,
     persistent_messages BOOLEAN,
     premium_level SMALLINT,
+    locale VARCHAR(10),
     PRIMARY KEY (guild_id)
 );
 

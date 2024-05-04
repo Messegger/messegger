@@ -1,0 +1,38 @@
+[commands]
+help_name = "help"
+help_description = "Get information about the bot or a command"
+settings_name = "settings"
+settings_description = "Configure bot's settings in the server"
+settings_persistent_messages_name = "persistent_messages"
+settings_persistent_messages_description = "Enable or disable storing a copy of new messages for better effectiveness"
+settings_logchannel_name = "logchannel"
+settings_logchannel_description = "Toggle where to send message logs, or omit to disable"
+snipe_name = "snipe"
+snipe_description = "Snipe the last deleted message in a channel"
+
+[help]
+title = "Messegger Bot"
+description = "A very work-in-progress Discord bot dedicated to providing the best message moderation and logging experience."
+links_name = "Links"
+links_value = "[**Add me to your server**]({0})\n[**Open-source code**]({1})\n[**Official Messegger Discord server**]({2})"
+command_help_description = "Get basic information about the bot and any relevant links, or about a specific command."
+command_settings_description = "Configure the bot's settings in the current server.\n\n- **logchannel** - set a channel where message logs will be sent to, or omit the channel to disable.\n- **persistent_messages** - toggle storing a copy of messages, their edits and deletions, for better logging and moderation effectiveness."
+command_snipe_description = "Quickly reveal the last deleted message from a current or specified channel."
+permissions_name = "Permission Management"
+permissions_value = "View and manage who can run these commands in your server's Integrations settings."
+
+[settings]
+persistent_messages_name = "Persistent Messages"
+persistent_messages_enabled = "Persistent messages enabled."
+persistent_messages_disabled = "Persistent messages disabled."
+persistent_messages_note_name = "Note"
+persistent_messages_note_description = "Due to Discord's [Developer Terms of Service]({0}), messages older than 30 days since creation are subject to automatic deletion, regardless of this setting."
+logchannel_name = "Message Logging"
+logchannel_enabled = "Message logging enabled in {0}."
+logchannel_disabled = "Message logging disabled."
+
+[logging]
+message_before = "Before"
+message_after = "After"
+message_attachments = "Attachments"
+unknown_webhook = "Unknown Webhook"

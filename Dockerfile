@@ -1,6 +1,6 @@
 # Choosing a specific version instead of latest for more control over
 # system and package versions, and to avoid breaking changes.
-FROM ubuntu:mantic
+FROM ubuntu:noble
 
 RUN apt-get update && \
     apt-get install -y libpq-dev python3 python3-pip && \

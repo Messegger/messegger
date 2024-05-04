@@ -1,4 +1,4 @@
-# Messegger v0.1
+# Messegger v0.2
 
 A very work-in-progress/early release of the Discord bot dedicated to providing the best message moderation and logging experience. Add the bot to your server [here](https://discord.com/oauth2/authorize?client_id=1226243129733156906&permissions=0&scope=bot).
 

@@ -1,3 +1,6 @@
+logging_level = "INFO" # DEBUG | INFO | WARNING | ERROR | CRITICAL
+main_color = 0x1793d1
+
 [bot]
 token = ""
 owner_ids = [ 0 ] # User or role IDs for admin commands in main guild.
@@ -5,8 +8,6 @@ main_guild_id = 0
 max_message_cache = 1000
 shard_count = 1
 shard_ids = [ 0 ]
-logging_level = "INFO" # DEBUG | INFO | WARNING | ERROR | CRITICAL
-main_color = 0x1793d1
 
 [postgresql]
 host = ""

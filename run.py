@@ -9,6 +9,7 @@ async def signal_handler():
 
 async def main():
     await init_db()
+    await client._load_extensions()
     await client.start(client.config["bot"]["token"], reconnect=True)
 
 if __name__ == "__main__":
