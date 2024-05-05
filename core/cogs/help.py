@@ -23,7 +23,7 @@ class Help(commands.Cog):
                 name=localization["en-US"]["help"]["links_name"],
                 value=localization["en-US"]["help"]["links_value"].format(
                     f"https://discord.com/oauth2/authorize?client_id={self.bot.user.id}&permissions=0&scope=bot",
-                    "https://github.com/Messegger/messegger",
+                    "https://top.gg/bot/1226243129733156906",
                     "https://discord.gg/rWVHU3qjvK",
                 ),
                 inline=False,
