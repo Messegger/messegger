@@ -9,9 +9,11 @@ The public bot's operation and its uptime, while it's still being added to its f
 Currently supported:
 - **Message logging** - log edited and deleted messages in a dedicated channel.
 - **Persistent messages** - store new, edited, and deleted messages in its own database for an improved logging effectiveness.
+- **Sniping** - snipe the latest deleted message from a channel.
 
 Planned features:
-- **Attachment logging** - download and store message attachments as to not rely on Discord's auto-expiring CDN.
+- **Attachment logging** - store a copy of message attachments as to not rely on Discord's auto-expiring CDN.
+- **Translator** - translate messages to any supported languages.
 - **Web access** - the Messegger project has a registered domain name `messegger.xyz`, which will be used to have more control over providing a much richer view of message logs. And a dashboard, but that's probably for a v2.
 - And much more...
 
