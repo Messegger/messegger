@@ -2,7 +2,8 @@ import discord
 import asyncio
 from discord.ext import commands
 from core.postgres import db
-from core.config import config, MY_GUILD, localization, guild_data
+from core.config import config, MY_GUILD, guild_data
+from core.locale import localize
 
 def guild_data_defaults():
     return {
@@ -71,12 +72,12 @@ async def _log_message(old_message: discord.Message | None, message: discord.Mes
     )
     if old_message:
         embed.add_field(
-            name=localization["en-US"]["logging"]["message_before"],
+            name=localize(message.guild.id, "logging", "message_before"),
             value=old_message.content,
             inline=False,
         )
         embed.add_field(
-            name=localization["en-US"]["logging"]["message_after"],
+            name=localize(message.guild.id, "logging", "message_after"),
             value=message.content,
             inline=False,
         )
@@ -85,7 +86,7 @@ async def _log_message(old_message: discord.Message | None, message: discord.Mes
         for attachment in message.attachments:
             attachments.append(f"[{attachment.filename}]({attachment.url})")
         embed.add_field(
-            name=localization["en-US"]["logging"]["message_attachments"],
+            name=localize(message.guild.id, "logging", "message_attachments"),
             value="\n".join(attachments),
             inline=False,
         )
@@ -106,6 +107,7 @@ async def on_shard_ready(shard_id):
             "log_channel_id": row[1],
             "persistent_messages": row[2],
             "premium_level": row[3],
+            "locale": row[4],
         }
         guild_ids.remove(row[0])
     
@@ -123,12 +125,13 @@ async def on_guild_join(guild):
         await db.simple_insert("guilds", guild_id=guild.id, **guild_data_defaults())
         guild_data[guild.id] = guild_data_defaults()
     except:
-        fetch_data = await db.fetch("SELECT log_channel_id, persistent_messages, premium_level FROM guilds WHERE guild_id = $1", guild.id)
+        fetch_data = await db.fetch("SELECT log_channel_id, persistent_messages, premium_level, locale FROM guilds WHERE guild_id = $1", guild.id)
         fetch_data = fetch_data[0]
         guild_data[guild.id] = {
             "log_channel_id": fetch_data[0],
             "persistent_messages": fetch_data[1],
             "premium_level": fetch_data[2],
+            "locale": fetch_data[3],
         }
 
 
@@ -199,22 +202,22 @@ async def on_raw_message_edit(payload):
                     icon_url=author.display_avatar,
                 )
             else:
-                embed.set_author(name=localization["en-US"]["logging"]["unknown_webhook"])
+                embed.set_author(name=localize(payload.guild_id, "logging", "unknown_webhook"))
             if fetch_data[1]:
                 embed.add_field(
-                    name=localization["en-US"]["logging"]["message_before"],
+                    name=localize(payload.guild_id, "logging", "message_before"),
                     value=fetch_data[1],
                     inline=False,
                 )
                 embed.add_field(
-                    name=localization["en-US"]["logging"]["message_after"],
+                    name=localize(payload.guild_id, "logging", "message_after"),
                     value=payload.data["content"],
                     inline=False,
                 )
             if fetch_data[2]:
                 attachment_urls = [f"[{i.split('/')[-1]}](https://cdn.discordapp.com/attachments/{i})" for i in fetch_data[2]]
                 embed.add_field(
-                    name=localization["en-US"]["logging"]["message_attachments"],
+                    name=localize(payload.guild_id, "logging", "message_attachments"),
                     value="\n".join(attachment_urls),
                     inline=False,
                 )
@@ -261,11 +264,11 @@ async def on_raw_message_delete(payload):
                     icon_url=author.display_avatar,
                 )
             else:
-                embed.set_author(name=localization["en-US"]["logging"]["unknown_webhook"])
+                embed.set_author(name=localize(payload.guild_id, "logging", "unknown_webhook"))
             if fetch_data[2]:
                 attachment_urls = [f"[{i.split('/')[-1]}](https://cdn.discordapp.com/attachments/{i})" for i in fetch_data[2]]
                 embed.add_field(
-                    name=localization["en-US"]["logging"]["message_attachments"],
+                    name=localize(payload.guild_id, "logging", "message_attachments"),
                     value="\n".join(attachment_urls),
                 )
             channel = client.get_channel(payload.channel_id)

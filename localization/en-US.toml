@@ -31,6 +31,9 @@ logchannel_name = "Message Logging"
 logchannel_enabled = "Message logging enabled in {0}."
 logchannel_disabled = "Message logging disabled."
 
+[snipe]
+no_message = "No message to snipe yet."
+
 [logging]
 message_before = "Before"
 message_after = "After"

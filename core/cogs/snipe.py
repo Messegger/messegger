@@ -2,7 +2,8 @@ import discord
 from typing import Optional
 from discord import app_commands
 from discord.ext import commands
-from core.config import localization, MAIN_COLOR
+from core.config import guild_data, MAIN_COLOR
+from core.locale import localization, localize
 
 snipes = dict()
 
@@ -45,13 +46,13 @@ class Snipe(commands.Cog):
             if len(message.attachments) > 0:
                 attachment_urls = [f"[{attachment.filename}]({attachment.url})" for attachment in message.attachments]
                 embed.add_field(
-                    name=localization["en-US"]["logging"]["message_attachments"],
+                    name=localize(interaction.guild_id, "logging", "message_attachments"),
                     value="\n".join(attachment_urls),
                     inline=False,
                 )
             await interaction.response.send_message(embed=embed, ephemeral=True)
         else:
-            await interaction.response.send_message(content=":x: No message to snipe yet.", ephemeral=True)
+            await interaction.response.send_message(content=f":x: {localize(interaction.guild_id, "snipe", "no_message")}", ephemeral=True)
 
 
 async def setup(bot):

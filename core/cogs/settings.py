@@ -2,8 +2,9 @@ import discord
 from typing import Optional, Literal
 from discord import app_commands
 from discord.ext import commands
-from core.config import guild_data, localization, MAIN_COLOR
+from core.config import guild_data, MAIN_COLOR
 from core.postgres import db
+from core.locale import localize, localization
 
 class Settings(commands.Cog):
     def __init__(self, bot):
@@ -32,14 +33,14 @@ class Settings(commands.Cog):
         guild_data[interaction.guild_id]["persistent_messages"] = option[toggle]
 
         embed = discord.Embed(
-            title=localization["en-US"]["settings"]["persistent_messages_name"],
-            description=localization["en-US"]["settings"]["persistent_messages_enabled"] if option[toggle] else localization["en-US"]["settings"]["persistent_messages_disabled"],
+            title=localize(interaction.guild_id, "settings", "persistent_messages_name"),
+            description=localize(interaction.guild_id, "settings", "persistent_messages_enabled") if option[toggle] else localize(interaction.guild_id, "settings", "persistent_messages_disabled"),
             color=MAIN_COLOR,
         )
         if option[toggle]:
             embed.add_field(
-                name=localization["en-US"]["settings"]["persistent_messages_note_name"],
-                value=localization["en-US"]["settings"]["persistent_messages_note_description"].format("https://discord.com/developers/docs/policies-and-agreements/developer-terms-of-service"),
+                name=localize(interaction.guild_id, "settings", "persistent_messages_note_name"),
+                value=localize(interaction.guild_id, "settings", "persistent_messages_note_description").format("https://discord.com/developers/docs/policies-and-agreements/developer-terms-of-service"),
                 inline=False,
             )
         
@@ -55,8 +56,8 @@ class Settings(commands.Cog):
         guild_data[interaction.guild_id]["log_channel_id"] = channel.id if channel else None
 
         embed = discord.Embed(
-            title=localization["en-US"]["settings"]["logchannel_name"],
-            description=localization["en-US"]["settings"]["logchannel_enabled"].format(channel.mention) if channel else localization["en-US"]["settings"]["logchannel_disabled"],
+            title=localize(interaction.guild_id, "settings", "logchannel_name"),
+            description=localize(interaction.guild_id, "settings", "logchannel_enabled").format(channel.mention) if channel else localize(interaction.guild_id, "settings", "logchannel_disabled"),
             color=MAIN_COLOR,
         )
 

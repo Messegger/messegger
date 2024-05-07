@@ -4,13 +4,7 @@ import datetime
 import os
 import discord
 
-localization = dict()
 guild_data = dict()
-
-for file in os.listdir("localization"):
-    if file.endswith(".toml"):
-        with open(f"localization/{file}", "rb") as data:
-            localization[file.split(".")[0]] = tomllib.load(data)
 
 with open("configs/config.toml", "rb") as file:
     config = tomllib.load(file)
